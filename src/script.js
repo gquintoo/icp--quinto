@@ -3,15 +3,30 @@ const ctx = canvas.getContext('2d');
 
 // Load images
 const mario = new Image();
-mario.src = 'mario.png';
-
 const background = new Image();
-background.src = 'background.png';
-
 const platformImage = new Image();
-platformImage.src = 'platform.png'; // Add a platform image
 
-const groundY = 350;
+const loadImages = () => {
+    return Promise.all([
+        new Promise((resolve) => {
+            mario.onload = resolve;
+            mario.onerror = () => console.error('Failed to load mario.png');
+            mario.src = 'mario.png';
+        }),
+        new Promise((resolve) => {
+            background.onload = resolve;
+            background.onerror = () => console.error('Failed to load background.png');
+            background.src = 'background.png';
+        }),
+        new Promise((resolve) => {
+            platformImage.onload = resolve;
+            platformImage.onerror = () => console.error('Failed to load platform.png');
+            platformImage.src = 'platform.png';
+        })
+    ]);
+};
+
+const groundY = 290; // Ground level
 const gravity = 1;
 let isJumping = false;
 let jumpSpeed = 15;
@@ -24,8 +39,7 @@ let marioSpeed = 5;
 
 // Platforms
 const platforms = [
-    
-    { x: 250, y: 300, width: 100, height: 10 },
+    { x: 0, y: 330, width: 1000, height: 10 },
     { x: 475, y: 250, width: 200, height: 10 },
     { x: 550, y: 170, width: 300, height: 10 },
 ];
@@ -71,25 +85,40 @@ function update() {
     }
 
     // Apply gravity
-    if (isJumping) {
-        marioY += marioYVelocity;
-        marioYVelocity += gravity;
+    marioY += marioYVelocity;
+    marioYVelocity += gravity;
 
-        // Check for ground collision
-        if (marioY >= groundY) {
-            marioY = groundY;
-            isJumping = false;
-            marioYVelocity = 0;
-        } else {
-            // Check for platform collisions
-            platforms.forEach(platform => {
-                if (marioX + 50 > platform.x && marioX < platform.x + platform.width &&
-                    marioY + 50 > platform.y && marioY + 50 < platform.y + platform.height) {
-                    marioY = platform.y - 50; // Place Mario on top of the platform
-                    isJumping = false;
-                    marioYVelocity = 0;
-                }
-            });
+    // Check if Mario is on the ground
+    if (marioY >= groundY) {
+        marioY = groundY;
+        isJumping = false;
+        marioYVelocity = 0;
+    } else {
+        // Check for platform collisions
+        let onPlatform = false;
+        platforms.forEach(platform => {
+            if (
+                marioX + 50 > platform.x && // Right edge of Mario
+                marioX < platform.x + platform.width && // Left edge of platform
+                marioY + 50 >= platform.y && // Bottom edge of Mario
+                marioY + 50 <= platform.y + platform.height // Top edge of platform
+            ) {
+                marioY = platform.y - 50; // Place Mario on top of the platform
+                isJumping = false;
+                marioYVelocity = 0;
+                onPlatform = true;
+            }
+        });
+
+        // If not on any platform, reset Mario to ground level
+        if (!onPlatform) {
+            // Apply gravity
+            if (marioY < groundY) {
+                marioY += gravity;
+            }
+            if (marioY > groundY) {
+                marioY = groundY; // Stop at ground level
+            }
         }
     }
 }
@@ -102,6 +131,4 @@ function gameLoop() {
 }
 
 // Start the game loop
-background.onload = function() {
-    gameLoop();
-};
+loadImages().then(gameLoop);
